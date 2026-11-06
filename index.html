@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 컨트롤 타워 - 프롬프트 & 신뢰도 관리 매니저</title>
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="./manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Malgun Gothic', sans-serif; }
+    body { background-color: #f1f5f9; color: #1e293b; padding: 20px; line-height: 1.5; }
+    .container { max-width: 1060px; margin: 0 auto; }
+    header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: #0f172a; color: #fff; padding: 18px 24px; border-radius: 14px; margin-bottom: 20px; }
+    .header-title h1 { font-size: 1.35rem; font-weight: 800; }
+    .header-title p { font-size: 0.82rem; color: #94a3b8; margin-top: 2px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .sync-badge { font-size: 0.78rem; padding: 6px 10px; border-radius: 20px; background: #1e293b; color: #38bdf8; border: 1px solid #334155; font-weight: 600; }
+    .install-btn { display: none; background: #10b981; color: #fff; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.88rem; }
+    .manual-btn { background: #3b82f6; color: #fff; border: none; padding: 9px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: #fff; padding: 22px; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 14px; }
+    .card-header h2 { font-size: 1.12rem; color: #0f172a; font-weight: 800; }
+    .fill-btn { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    label { display: block; font-size: 0.88rem; font-weight: 700; margin-top: 10px; margin-bottom: 4px; color: #334155; }
+    input[type="text"], select, textarea { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.92rem; background: #f8fafc; }
+    textarea { resize: vertical; min-height: 76px; }
+    .btn { display: inline-block; margin-top: 12px; background: #2563eb; color: #fff; border: none; padding: 11px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; width: 100%; font-size: 0.92rem; }
+    .btn-secondary { background: #4f46e5; margin-top: 8px; }
+    .btn-green { background: #10b981; }
+    .result-box { margin-top: 12px; background: #f8fafc; border: 1px dashed #94a3b8; padding: 12px; border-radius: 8px; font-size: 0.88rem; min-height: 82px; white-space: pre-wrap; }
+    .warning-box { display: none; margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 0.84rem; font-weight: 600; }
+    .check-item { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; font-size: 0.88rem; color: #334155; cursor: pointer; }
+    .progress-bar { width: 100%; background: #e2e8f0; height: 18px; border-radius: 10px; overflow: hidden; margin-top: 12px; }
+    .progress-fill { height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s ease; }
+    .status-badge { display: block; text-align: center; margin-top: 10px; padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 0.88rem; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .tab-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+    .tab-btn { background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; padding: 5px 11px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+    .tab-btn.active { background: #0f172a; color: #fff; border-color: #0f172a; }
+    .prompt-list { list-style: none; max-height: 290px; overflow-y: auto; }
+    .prompt-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 10px; margin-bottom: 10px; }
+    .prompt-item-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .tag { background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; }
+    .small-btn { background: #fff; border: 1px solid #cbd5e1; padding: 4px 9px; border-radius: 6px; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+    .small-btn.del { color: #dc2626; border-color: #fecaca; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #0f172a; color: #fff; padding: 12px 18px; border-radius: 10px; font-size: 0.88rem; font-weight: 600; display: none; z-index: 2000; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); justify-content: center; align-items: center; z-index: 1500; padding: 16px; }
+    .modal { background: #fff; padding: 24px; border-radius: 16px; max-width: 680px; width: 100%; max-height: 86vh; overflow-y: auto; }
+    .modal-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 16px; }
+    .manual-section { margin-bottom: 14px; background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    .manual-section h4 { font-size: 0.96rem; color: #1d4ed8; margin-bottom: 6px; }
+    .manual-section p, .manual-section li { font-size: 0.86rem; color: #334155; margin-bottom: 4px; }
+    .manual-section ul, .manual-section ol { padding-left: 20px; }
+    .close-btn { background: #ef4444; color: #fff; border: none; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-title">
+      <h1>🛠️ AI 컨트롤 타워 (AI Control Tower)</h1>
+      <p>맞춤형 프롬프트 조립·보관 및 AI 답변 신뢰도·개인정보 안전 점검 웹앱</p>
+    </div>
+    <div class="header-actions">
+      <span id="syncBadge" class="sync-badge">💾 로컬 & GAS 연동 준비</span>
+      <button id="pwaInstallBtn" class="install-btn" onclick="installPWA()">📲 앱 설치</button>
+      <button class="manual-btn" onclick="openManual()">📖 사용 방법</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-header">
+        <h2>1. 맞춤형 프롬프트 조립기</h2>
+        <button class="fill-btn" onclick="fillBuilderExample()">✨ 예시 자동 채우기</button>
+      </div>
+      <label>AI의 역할 (Role)</label>
+      <input type="text" id="roleInput" placeholder="예: 친절한 고등학교 정보·코딩 선생님">
+      <label>요청할 구체적 작업 (Task)</label>
+      <input type="text" id="taskInput" placeholder="예: 정렬 알고리즘의 개념과 실생활 예시를 설명해 줘">
+      <label>원하는 출력 형식 (Format)</label>
+      <input type="text" id="formatInput" placeholder="예: 핵심 3줄 요약 + 비교 표 형태로 정리">
+      <button class="btn" onclick="buildPrompt()">프롬프트 조합하기</button>
+      <div class="result-box" id="builtPrompt">여기에 구조화된 완성형 프롬프트가 표시됩니다.</div>
+      <button class="btn btn-secondary" onclick="copyBuiltPrompt()">📋 완성된 프롬프트 복사 & 보관함 입력창으로 보내기</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>2. AI 답변 신뢰도 & 안전 점검기</h2>
+        <button class="fill-btn" onclick="fillCheckerExample()">🔍 점검 예시 채우기</button>
+      </div>
+      <label>검증할 AI 답변 또는 질문 초안 붙여넣기</label>
+      <textarea id="aiResponse" oninput="scanPrivacyAndSafety()" placeholder="AI 답변을 붙여넣으면 개인정보 및 금지 주소 포함 여부를 실시간 검사합니다."></textarea>
+      <div id="privacyWarning" class="warning-box"></div>
+      <div style="margin-top:10px;">
+        <label class="check-item"><input type="checkbox" class="chk" onchange="updateScore()"> <span><strong>[환각·출처 점검]</strong> AI가 제시한 출처나 근거가 실제로 존재하는지 확인했나요?</span></label>
+        <label class="check-item"><input type="checkbox" class="chk" onchange="updateScore()"> <span><strong>[팩트 교차 검증]</strong> 숫자, 날짜, 인물, 코드 실행 결과가 정확한지 확인했나요?</span></label>
+        <label class="check-item"><input type="checkbox" class="chk" onchange="updateScore()"> <span><strong>[개인정보·주소 보호]</strong> 실명, 학번, 연락처 및 Apps Script 주소가 빠져 있나요?</span></label>
+        <label class="check-item"><input type="checkbox" class="chk" onchange="updateScore()"> <span><strong>[주체적 재구성]</strong> AI 답변을 내 생각과 표현으로 다시 정리했나요?</span></label>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="scoreBar"></div></div>
+      <div id="scoreStatus" class="status-badge">점검 전 (0% 완료 - 과제 사용 전 반드시 점검하세요)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>3. 나만의 프롬프트 보관함 (로컬 & GAS 스프레드시트 연동)</h2>
+      <button class="fill-btn" onclick="resetDefaultPrompts()">🔄 초기 예시 복원</button>
+    </div>
+    <div class="grid" style="margin-bottom: 0;">
+      <div>
+        <label>프롬프트 제목</label>
+        <input type="text" id="libTitle" placeholder="예: 수행평가 탐구 보고서 개요 작성">
+        <label>카테고리 선택</label>
+        <select id="libCategory">
+          <option value="과제/탐구">과제/탐구</option>
+          <option value="코딩/오류수정">코딩/오류수정</option>
+          <option value="요약/번역">요약/번역</option>
+        </select>
+        <label>프롬프트 본문</label>
+        <textarea id="libContent" placeholder="보관할 프롬프트 내용을 입력하세요."></textarea>
+        <button class="btn btn-green" onclick="savePrompt()">💾 보관함 & 구글 시트에 저장하기</button>
+      </div>
+      <div>
+        <label>카테고리별 필터 및 저장 목록</label>
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="filterCategory('전체', this)">전체</button>
+          <button class="tab-btn" onclick="filterCategory('과제/탐구', this)">과제/탐구</button>
+          <button class="tab-btn" onclick="filterCategory('코딩/오류수정', this)">코딩/오류수정</button>
+          <button class="tab-btn" onclick="filterCategory('요약/번역', this)">요약/번역</button>
+        </div>
+        <ul class="prompt-list" id="promptList"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">알림</div>
+
+<div class="modal-overlay" id="manualModal" onclick="if(event.target.id==='manualModal')closeManual()">
+  <div class="modal">
+    <div class="modal-top">
+      <h3>📖 AI 컨트롤 타워 사용자 매뉴얼 (사용 방법)</h3>
+      <button class="close-btn" onclick="closeManual()">닫기</button>
+    </div>
+    <div class="manual-section">
+      <h4>1. 프로그램 소개</h4>
+      <p>학생들이 AI를 활용해 과제를 할 때 프롬프트를 체계적으로 조립·보관하고, AI 답변의 환각 현상과 개인정보 노출을 점검하는 웹앱입니다.</p>
+    </div>
+    <div class="manual-section">
+      <h4>2. 접속·설치 방법 (PWA 설치형 앱)</h4>
+      <p>깃허브 페이지 주소로 접속한 뒤 상단의 <strong>[📲 앱 설치]</strong> 버튼이나 브라우저 메뉴의 <strong>[홈 화면에 추가 / 앱 설치]</strong>를 누르면 기기에 설치됩니다.</p>
+    </div>
+    <div class="manual-section">
+      <h4>3. 화면 설명</h4>
+      <p>상단 헤더(연동 상태, 앱 설치, 사용 방법)와 1번 프롬프트 조립기, 2번 신뢰도·안전 점검기, 3번 프롬프트 보관함(GAS 시트 연동)으로 구성되어 있습니다.</p>
+    </div>
+    <div class="manual-section">
+      <h4>4. 기능별 사용 방법</h4>
+      <ol>
+        <li><strong>프롬프트 조립기:</strong> 역할·작업·출력 형식을 입력하고 [프롬프트 조합하기] 후 복사합니다.</li>
+        <li><strong>신뢰도 점검기:</strong> AI 답변을 붙여넣어 개인정보를 검사하고 4개 체크박스를 모두 점검해 100%를 달성합니다.</li>
+        <li><strong>프롬프트 보관함:</strong> 제목과 본문을 입력해 저장하면 브라우저와 구글 스프레드시트에 동시에 보관됩니다.</li>
+      </ol>
+    </div>
+    <div class="manual-section">
+      <h4>5. 주의사항과 자주 묻는 질문</h4>
+      <ul>
+        <li><strong>주의사항:</strong> 프롬프트와 캡처 화면에 실명, 학번, 연락처 및 <code>script.google.com</code> 주소가 절대 노출되지 않게 주의하세요.</li>
+        <li><strong>Q. 새로고침하면 지워지나요?</strong> A. 로컬 저장소와 GAS 스프레드시트에 함께 저장되어 유지됩니다.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ★ 아래 따옴표 안에 3단계에서 복사한 GAS 웹앱 주소(https://script.google.com/macros/s/.../exec)를 붙여넣으세요!
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbw9Vx_UFhO06dNo3dXlB8Zh0y18NXexBCrGo4qpza6nDd9PKRPB_bn6UkktyMx6XXXR2Q/exec";
+
+  // PWA 서비스 워커 등록
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    document.getElementById('pwaInstallBtn').style.display = 'inline-block';
+  });
+
+  function installPWA() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+    } else {
+      showToast("주소창 우측의 [앱 설치] 아이콘 또는 모바일 메뉴의 [홈 화면에 추가]를 눌러주세요!");
+    }
+  }
+
+  const DEFAULT_PROMPTS = [
+    { title: "수행평가 탐구 주제 설계", category: "과제/탐구", content: "[역할 부여]\n당신은 고등학교 탐구 보고서 지도 교사입니다.\n\n[수행할 작업]\nAI 윤리와 팩트 체크를 주제로 탐구 소주제 3가지를 제안해 주세요.\n\n[출력 형식 및 조건]\n개조식 글머리 기호로 정리" },
+    { title: "자바스크립트 오류 원인 해결", category: "코딩/오류수정", content: "[역할 부여]\n당신은 친절한 코딩 튜터입니다.\n\n[수행할 작업]\n아래 코드의 오류 원인을 찾고 수정된 코드를 알려주세요.\n\n[출력 형식 및 조건]\n오류 원인 1줄 요약 + 수정 코드" }
+  ];
+
+  let prompts = JSON.parse(localStorage.getItem('savedPrompts')) || DEFAULT_PROMPTS;
+  let currentCategory = '전체';
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    clearTimeout(window.toastTimer);
+    window.toastTimer = setTimeout(() => { t.style.display = 'none'; }, 2500);
+  }
+
+  // 시작 시 GAS 스프레드시트 데이터 불러오기
+  function initApp() {
+    if (GAS_URL && GAS_URL.startsWith("https://")) {
+      const badge = document.getElementById('syncBadge');
+      badge.innerText = "☁️ GAS 시트 연동 중";
+      badge.style.color = "#4ade80";
+      fetch(GAS_URL + "?action=read")
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            prompts = data;
+            localStorage.setItem('savedPrompts', JSON.stringify(prompts));
+            renderPrompts();
+          }
+        })
+        .catch(() => {});
+    }
+    renderPrompts();
+  }
+
+  function fillBuilderExample() {
+    document.getElementById('roleInput').value = "친절하고 논리적인 고등학교 정보 교사";
+    document.getElementById('taskInput').value = "생성형 AI의 환각 현상이 발생하는 원인과 예방법을 설명해 줘";
+    document.getElementById('formatInput').value = "핵심 3줄 요약 + 실천 수칙 3가지 번호 목록";
+    buildPrompt();
+    showToast("✨ 조립 예시가 입력되었습니다!");
+  }
+
+  function buildPrompt() {
+    const r = document.getElementById('roleInput').value.trim();
+    const t = document.getElementById('taskInput').value.trim();
+    const f = document.getElementById('formatInput').value.trim();
+    if (!r || !t || !f) return alert("역할, 작업, 출력 형식을 모두 입력해 주세요!");
+    document.getElementById('builtPrompt').innerText = `[역할 부여]\n당신은 '${r}'입니다.\n\n[수행할 작업]\n${t}\n\n[출력 형식 및 조건]\n${f}`;
+  }
+
+  function copyBuiltPrompt() {
+    const text = document.getElementById('builtPrompt').innerText;
+    if (text.includes("여기에 구조화된")) return alert("먼저 프롬프트를 조합해 주세요!");
+    navigator.clipboard.writeText(text);
+    document.getElementById('libContent').value = text;
+    document.getElementById('libTitle').value = document.getElementById('taskInput').value.trim().slice(0, 20) || "새 맞춤 프롬프트";
+    showToast("📋 복사 및 3번 보관함 입력창 자동 채우기 완료!");
+  }
+
+  function fillCheckerExample() {
+    document.getElementById('aiResponse').value = "생성형 AI는 확률 기반으로 문장을 생성하므로 출처 확인과 교차 검증이 필수적입니다.";
+    scanPrivacyAndSafety();
+    document.querySelectorAll('.chk').forEach(c => c.checked = true);
+    updateScore();
+    showToast("🔍 신뢰도 점검 100% 예시가 반영되었습니다!");
+  }
+
+  function scanPrivacyAndSafety() {
+    const text = document.getElementById('aiResponse').value;
+    const warnBox = document.getElementById('privacyWarning');
+    const warns = [];
+    if (/01[016789][-\s]?\d{3,4}[-\s]?\d{4}/.test(text)) warns.push("연락처");
+    if (/\b[1-3]0\d{3}\b|\b학번/i.test(text)) warns.push("학번");
+    if (/script\.google\.com/i.test(text)) warns.push("Apps Script 주소");
+    if (warns.length > 0) {
+      warnBox.style.display = 'block';
+      warnBox.innerText = "⚠️ 주의: " + warns.join(", ") + " 포함 의심! 삭제 후 사용하세요.";
+    } else {
+      warnBox.style.display = 'none';
+    }
+  }
+
+  function updateScore() {
+    const checks = document.querySelectorAll('.chk');
+    let cnt = 0;
+    checks.forEach(c => { if (c.checked) cnt++; });
+    const pct = Math.round((cnt / checks.length) * 100);
+    document.getElementById('scoreBar').style.width = pct + '%';
+    const badge = document.getElementById('scoreStatus');
+    if (pct === 100) {
+      badge.style.background = '#dcfce7'; badge.style.color = '#15803d'; badge.style.borderColor = '#86efac';
+      badge.innerText = `✅ 점검 완료 (100% - 안전하게 과제에 활용 가능!)`;
+    } else {
+      badge.style.background = '#fef9c3'; badge.style.color = '#a16207'; badge.style.borderColor = '#fde047';
+      badge.innerText = `⚡ 점검 진행 중 (${pct}% 완료 - 남은 항목을 확인하세요)`;
+    }
+  }
+
+  function filterCategory(cat, btn) {
+    currentCategory = cat;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderPrompts();
+  }
+
+  function renderPrompts() {
+    const list = document.getElementById('promptList');
+    list.innerHTML = '';
+    const filtered = prompts.map((item, idx) => ({ ...item, idx })).filter(item => currentCategory === '전체' || item.category === currentCategory);
+    filtered.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'prompt-item';
+      li.innerHTML = `<div class="prompt-item-header"><strong>${item.title}</strong><div><span class="tag">${item.category}</span> <button class="small-btn" onclick="copySaved(${item.idx})">복사</button> <button class="small-btn del" onclick="deletePrompt(${item.idx})">삭제</button></div></div><div style="font-size:0.84rem;color:#475569;white-space:pre-wrap;">${item.content}</div>`;
+      list.appendChild(li);
+    });
+  }
+
+  function savePrompt() {
+    const title = document.getElementById('libTitle').value.trim();
+    const category = document.getElementById('libCategory').value;
+    const content = document.getElementById('libContent').value.trim();
+    if (!title || !content) return alert("제목과 본문을 모두 입력해 주세요!");
+    const newItem = { title, category, content };
+    prompts.unshift(newItem);
+    localStorage.setItem('savedPrompts', JSON.stringify(prompts));
+
+    // GAS 웹앱 주소가 입력되어 있으면 구글 스프레드시트로 즉시 전송
+    if (GAS_URL && GAS_URL.startsWith("https://")) {
+      fetch(GAS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(newItem)
+      }).catch(() => {});
+    }
+
+    document.getElementById('libTitle').value = '';
+    document.getElementById('libContent').value = '';
+    filterCategory('전체', document.querySelector('.tab-btn'));
+    showToast("💾 로컬 보관함 및 GAS 스프레드시트 저장 완료!");
+  }
+
+  function copySaved(idx) {
+    navigator.clipboard.writeText(prompts[idx].content);
+    showToast("📋 프롬프트가 복사되었습니다!");
+  }
+
+  function deletePrompt(idx) {
+    prompts.splice(idx, 1);
+    localStorage.setItem('savedPrompts', JSON.stringify(prompts));
+    renderPrompts();
+  }
+
+  function resetDefaultPrompts() {
+    prompts = [...DEFAULT_PROMPTS];
+    localStorage.setItem('savedPrompts', JSON.stringify(prompts));
+    renderPrompts();
+    showToast("🔄 초기 예시가 복원되었습니다!");
+  }
+
+  function openManual() { document.getElementById('manualModal').style.display = 'flex'; }
+  function closeManual() { document.getElementById('manualModal').style.display = 'none'; }
+  initApp();
+</script>
+</body>
+</html>
